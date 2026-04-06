@@ -43,7 +43,7 @@ public abstract class AbstractMagicLinkTest {
 
     public static final String KEYCLOAK_IMAGE =
             String.format(
-                    "quay.io/keycloak/keycloak:%s", System.getProperty("keycloak-version", "26.5.3"));
+                    "quay.io/phasetwo/keycloak-crdb:%s", System.getProperty("keycloak-version", "26.5.7"));
     public static final String REALM = "master";
 
     public static final Network network = Network.newNetwork();
