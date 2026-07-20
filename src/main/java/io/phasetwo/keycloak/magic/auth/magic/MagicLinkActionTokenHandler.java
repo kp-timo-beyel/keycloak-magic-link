@@ -91,7 +91,12 @@ public final class MagicLinkActionTokenHandler extends AbstractActionTokenHandle
       AuthenticationManager.setClientScopesInSession(tokenContext.getSession(), authSession);
     }
 
-    if (token.getRememberMe() != null && token.getRememberMe()) {
+    // Only honor rememberMe when the realm has it enabled. Since Keycloak 26.5.0
+    // (also backported to 26.4.2 / 26.2.12), sessions created with rememberMe=true are
+    // invalid when the realm has remember me disabled ("Session not active" on exchange).
+    if (token.getRememberMe() != null
+        && token.getRememberMe()
+        && tokenContext.getRealm().isRememberMe()) {
       authSession.setAuthNote(Details.REMEMBER_ME, "true");
       tokenContext.getEvent().detail(Details.REMEMBER_ME, "true");
     } else {

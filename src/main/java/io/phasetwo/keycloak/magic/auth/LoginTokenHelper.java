@@ -404,7 +404,18 @@ class LoginTokenHelper {
     }
 
     if ("true".equalsIgnoreCase(notes.get(KEY_REMEMBER_ME))) {
-      context.getAuthenticationSession().setAuthNote(Details.REMEMBER_ME, "true");
+      // Only honor remember_me when the realm has it enabled. Since Keycloak 26.5.0
+      // (also backported to 26.4.2 / 26.2.12), AuthenticationManager.isSessionValid()
+      // treats sessions created with rememberMe=true as invalid when the realm has
+      // remember me disabled — the subsequent code exchange then fails with
+      // "Session not active".
+      if (context.getRealm().isRememberMe()) {
+        context.getAuthenticationSession().setAuthNote(Details.REMEMBER_ME, "true");
+      } else {
+        log.debugf(
+            "[LT] ignoring remember_me for token '%s': remember me is disabled for realm '%s'",
+            tokenId, context.getRealm().getName());
+      }
     }
 
     clearLoginHint(context);
