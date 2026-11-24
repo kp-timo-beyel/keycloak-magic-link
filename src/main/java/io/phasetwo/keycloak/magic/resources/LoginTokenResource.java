@@ -68,6 +68,12 @@ import org.keycloak.models.UserModel;
 @JBossLog
 public class LoginTokenResource extends AbstractAdminResource {
 
+  /** Upper bound for {@code expiration_seconds} of a token redeemable more than once. */
+  static final long MAX_EXPIRATION_REUSABLE = 30L * 24 * 60 * 60;
+
+  /** Upper bound for {@code expiration_seconds} of a single-use token ({@code max_uses=1}). */
+  static final long MAX_EXPIRATION_SINGLE_USE = 3L * 24 * 60 * 60;
+
   private final boolean legacyByDefault;
 
   public LoginTokenResource(KeycloakSession session, boolean legacyByDefault) {
@@ -96,6 +102,10 @@ public class LoginTokenResource extends AbstractAdminResource {
     }
 
     int maxUses = resolveMaxUses(req);
+
+    // Keycloak caps the lifetime for every caller; a longer request is shortened, not rejected.
+    long maxExpiration = maxUses == 1 ? MAX_EXPIRATION_SINGLE_USE : MAX_EXPIRATION_REUSABLE;
+    long expirationSeconds = Math.min(req.getExpirationSeconds(), maxExpiration);
 
     // client_id is optional: when present, the token is bound to that client and the binding is
     // always enforced on redemption. When absent, an unbound ("universal") token is created that
@@ -140,7 +150,7 @@ public class LoginTokenResource extends AbstractAdminResource {
       }
     }
 
-    long absoluteExpiry = Time.currentTime() + (long) req.getExpirationSeconds();
+    long absoluteExpiry = Time.currentTime() + expirationSeconds;
     boolean legacy = req.getLegacy() != null ? req.getLegacy() : legacyByDefault;
 
     String tokenId = null;
@@ -191,7 +201,7 @@ public class LoginTokenResource extends AbstractAdminResource {
 
       SingleUseObjectProvider singleUse = session.getProvider(SingleUseObjectProvider.class);
       singleUse.put(
-          LoginTokenVerifier.DATA_KEY_PREFIX + tokenId, (long) req.getExpirationSeconds(), notes);
+          LoginTokenVerifier.DATA_KEY_PREFIX + tokenId, expirationSeconds, notes);
     }
 
     log.debugf(
